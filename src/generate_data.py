@@ -5,10 +5,8 @@ import json
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from src.performative_predictionV1 import Performative_PredictionV1
-from src.performative_predictionV2 import Performative_PredictionV2
-from src.envs.gridworldV1 import GridworldV1
-from src.envs.gridworldV2 import GridworldV2
+from src.performative_prediction import Performative_Prediction
+from src.envs.gridworld import Gridworld
 from src.utils import *
 
 
@@ -19,7 +17,6 @@ def generate_data(params):
     start = time.time()
 
     # Load Experiment Mode
-    env_version = params['env_version']
     gradient = params['gradient']
     sampling = params['sampling']
     # Load Experiment Parameters
@@ -48,6 +45,8 @@ def generate_data(params):
     nus = params['nus']
     # unregularized objective
     unregularized_obj = params['unregularized_obj']
+    # lagrangian
+    lagrangian = params['lagrangian']
 
     # Prepare Experiment Configurations
     configs = []
@@ -75,7 +74,7 @@ def generate_data(params):
                 configs.append({'beta': fbeta, 'lamda': flamda, 'gamma': fgamma, 'reg': freg, 'eta': eta, 'n_sample': fn_sample})
             else:
                 configs.append({'beta': fbeta, 'lamda': flamda, 'gamma': fgamma, 'reg': freg, 'eta': eta})
-    if sampling:
+    if sampling and not lagrangian:
         # iterate n_samples
         for n_sample in n_samples:
             if gradient:
@@ -90,27 +89,31 @@ def generate_data(params):
         # iterate lamdas
         for lamda in lamdas:
             configs.append({'beta': fbeta, 'lamda': lamda, 'gamma': fgamma, 'reg': freg})
+    if lagrangian:
+        for n_sample in n_samples:
+            # num of samples is split
+           configs.append({'beta': fbeta, 'lamda': flamda, 'gamma': fgamma, 'reg': freg, 'n_sample': n_sample//2})
 
     # remove duplicates
     configs = [dict(tup) for tup in set(tuple(d.items()) for d in configs)]
-    
+
     # Generate Output
     if not sampling:
         # parallelize over configurations
         with tqdm_joblib(tqdm(desc="Executing Performative Prediction", total=len(configs))) as progress_bar:
             outputs = Parallel(n_jobs=min(n_jobs, len(configs)))(
-                delayed(execute_performative_prediction)(config, env_version, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj)
+                delayed(execute_performative_prediction)(config, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian)
                 for config in configs
             )
     else:
         outputs = []
-        # parallelize over seeds
+        # parallelize over seeds TODO for lagrangian
         configs = sorted(configs, key=lambda d: d['n_sample']) 
         for config in configs:
             output = {k: v for k, v in config.items()}
             with tqdm_joblib(tqdm(desc=f"Executing Performative Prediction for n_sample={config['n_sample']}", total=len(seeds))) as progress_bar:
                 tmp_output = Parallel(n_jobs=min(n_jobs, len(seeds)))(
-                    delayed(execute_performative_prediction)(config, env_version, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, seed)
+                    delayed(execute_performative_prediction)(config, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, seed)
                     for seed in seeds
                 )
             d_diffs = [tmp_output[seed]['d_diff'] for seed in seeds]
@@ -132,7 +135,7 @@ def generate_data(params):
 
     return
 
-def execute_performative_prediction(config, env_version, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, seed=1):
+def execute_performative_prediction(config, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, seed=1):
     """
     """
     beta = config['beta']
@@ -146,14 +149,8 @@ def execute_performative_prediction(config, env_version, eps, max_iterations, gr
     if sampling: n_sample = config['n_sample']
     else: n_sample = None
 
-    if env_version == 1:
-        env = GridworldV1(beta, eps, gamma, sampling, n_sample, seed)
-        algorithm = Performative_PredictionV1(env, max_iterations, lamda, reg, gradient, eta, sampling, policy_gradient, nu, unregularized_obj)
-    elif env_version == 2:
-        env = GridworldV2(beta, eps, gamma, sampling, n_sample, seed)
-        algorithm = Performative_PredictionV2(env, max_iterations, lamda, reg, gradient, eta, sampling)
-    else:
-        raise ValueError()
+    env = Gridworld(beta, eps, gamma, sampling, n_sample, seed)
+    algorithm = Performative_Prediction(env, max_iterations, lamda, reg, gradient, eta, sampling, n_sample, policy_gradient, nu, unregularized_obj, lagrangian)
 
     output = {k: v for k,v in config.items()}
     algorithm.execute()

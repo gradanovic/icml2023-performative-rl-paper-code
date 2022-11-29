@@ -48,6 +48,11 @@ python run_experiment.py --gradient --sampling --etas 1
 python run_experiment.py --policy_gradient
 ```
 
+### Solving Lagrangian
+```
+python run_experiment.py --sampling --lagrangian
+```
+
 ## Results
 
 After running the above scripts, new plots will be generated in the figures directory.
@@ -56,4 +61,3 @@ After running the above scripts, new plots will be generated in the figures dire
 
 The following are not included in the paper:
 * For the experiment *repeated gradient ascent with finite samples* the corresponding suboptimality gap is also computed
-* A second environment (*GridworldV2*) has been also implemented

@@ -2,11 +2,12 @@ import copy
 import numpy as np
 import cvxpy as cp
 
+from src.envs.gridworld import Gridworld
 from src.policies.policies import *
 
-class Performative_PredictionV1():
+class Performative_Prediction():
 
-    def __init__(self, env, max_iterations, lamda, reg, gradient, eta, sampling, policy_gradient, nu, unregularized_obj):
+    def __init__(self, env: Gridworld, max_iterations, lamda, reg, gradient, eta, sampling, n_sample, policy_gradient, nu, unregularized_obj, lagrangian):
         
         self.env = env
         self.max_iterations = max_iterations
@@ -15,9 +16,16 @@ class Performative_PredictionV1():
         self.gradient = gradient
         self.eta = eta
         self.sampling = sampling
+        self.n_sample = n_sample
         self.policy_gradient = policy_gradient
         self.nu = nu
         self.unregularized_obj = unregularized_obj
+        self.lagrangian = lagrangian
+        # TODO parameter
+        # number of rounds for lagrangian method
+        self.N = 10
+        # parameter delta for lagrangian (beta in doccument)
+        self.delta = .1
 
         self.reset()
 
@@ -47,10 +55,7 @@ class Performative_PredictionV1():
         self.pi_last = pi_first
         for _ in range(self.max_iterations):
             # retrain policies
-            if self.policy_gradient:
-                self.retrain1_policy_gradient()
-            else:
-                self.retrain1()
+            self.retrain1()
             self.retrain2()
             # update rewards and transition functions
             self.R, self.T = env._get_RT()
@@ -60,6 +65,14 @@ class Performative_PredictionV1():
     def retrain1(self):
         """
         """
+        # different retraining methods
+        if self.policy_gradient:
+            self.retrain1_policy_gradient()
+            return
+        elif self.lagrangian:
+            self.retrain1_lagrangian()
+            return
+
         env = self.env
         agent = self.agents[1]
         rho = env.rho
@@ -215,5 +228,111 @@ class Performative_PredictionV1():
         # store suboptimality gap
         self.sub_gap.append(max((opt_problem.value - subopt_value)/abs(opt_problem.value), 0))   # max0 due to tolerance of SCS
 
+        return
+
+    # policy gradient
+    def retrain1_lagrangian(self):
+        """
+        """
+        env = self.env
+        agent = self.agents[1]
+        rho = env.rho
+        gamma = env.gamma
+
+        # get approximate d
+        d_hat = env._get_d(self.T, agent)
+        # generate empirical data
+        data = []
+        for _ in range(self.n_sample):
+            data += env.sample_trajectory()
+        m = len(data)
+        # list that contains values d from all the iterates
+        d_lst = []
+        for n in range(self.N):
+            # h Player
+
+            # variables
+            h = cp.Variable(env.dim)
+
+            # compute vector L
+            L = []
+            for s in range(env.dim):
+                if env.is_terminal(s): # TODO think and ask
+                    L.append(0)
+                    continue
+                l = rho[s]
+                if n==0:
+                    L.append(l)
+                    continue
+                for s_i, a, s_pr, _  in data:
+                    if s_i == s:
+                        for n_pr in range(n-1):
+                            l -= d_lst[n_pr][s, a]/(d_hat[s, a] * m * (1 - gamma))
+                    if s_pr == s:
+                        for n_pr in range(n-1):
+                            l += gamma * (d_lst[n_pr][s, a]/(d_hat[s, a] * m * (1 - gamma)))
+                L.append(l)
+            print(L)
+            print()
+
+            # optimization objective
+            objective = cp.Minimize(cp.sum(cp.multiply(L, h)) + self.delta * cp.power(cp.pnorm(h, 2), 2))
+
+            # constraints
+            constraints = []
+            # ||h||_2 <= 3S/(1-\gamma)^2
+            constraints.append(cp.pnorm(h, 2) <= 3 * env.dim / cp.power((1 - gamma), 2))
+
+            # solve problem
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver=cp.SCS, eps=1e-5)
+
+            h_t = h.value
+            print(h_t)
+            print()
+
+            # d Player
+
+            # variables
+            d = cp.Variable((env.dim, len(agent.actions)), nonneg=True)
+
+            # optimization objective
+            obj = 0
+            for s_i, a, s_pr, r  in data:
+                obj += d[s, a] * (r - h_t[s] + gamma * h_t[s_pr])/(d_hat[s, a] * m * (1 - gamma))
+            objective = cp.Maximize(-self.lamda/2 * cp.power(cp.pnorm(d, 2), 2) + cp.sum(cp.multiply(h.value, rho)) + obj)
+
+            # constraints
+            constraints = []
+            for s in range(env.dim):
+                if env.is_terminal(s): continue
+                constraints.append(cp.sum(d[s]) == rho[s] + gamma * cp.sum(cp.multiply(d, self.T[:,:,s])))
+
+            # solve problem
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver=cp.SCS, eps=1e-5)
+
+            print(d.value)
+            print()
+
+            d_lst.append(d.value)
+
+        # compute average d
+        d_avg = np.mean(d_lst, axis=0)
+
+        print(d_avg)
+        print()
+        
+        # store difference in state-action occupancy measure
+        self.d_diff.append(np.linalg.norm(d_avg - self.d_last)/np.linalg.norm(self.d_last))
+        self.d_last = d_avg
+
+        # update policy
+        agent.policy = RandomizedD_Policy(agent.actions, d_avg)
+
+        # 
+        print(env._get_policy_array(agent))
+        print()
+        exit()
 
         return

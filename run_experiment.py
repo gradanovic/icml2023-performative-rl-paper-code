@@ -7,11 +7,8 @@ from src.generate_plots import generate_plots
 
 @click.command()
 # experiment modes
-@click.option('--env_version', default=1, type=click.Choice([1, 2]), help='Environment version')
 @click.option('--gradient', is_flag=True, help='Flag for repeated gradient ascent method')
 @click.option('--sampling', is_flag=True, help='Flag for finite samples')
-# unregularized objective
-@click.option('--unregularized_obj', is_flag=True, help='Flag for evaluation on unregularized objective')
 # experiment parameters
 @click.option('--eps', default=.3, type=float, help='Environment parameter epsilon')
 @click.option('--fbeta', default=5, type=float, help='Fixed value for (smoothness) parameter beta')
@@ -22,6 +19,7 @@ from src.generate_plots import generate_plots
 @click.option('--gammas', multiple=True, default=[], type=float, help='List of values for discount factor gamma')
 @click.option('--freg', default='L2', type=click.Choice(['L2', 'ER']), help='Fixed value for regularizer')
 @click.option('--regs', multiple=True, default=[], type=click.Choice(['L2', 'ER']), help='List of values for regularizer')
+@click.option('--num_followers', default=50, type=int, help='Number of followers')
 # gradient
 @click.option('--feta', default=1, type=float, help='Fixed value for (step size) parameter eta')
 @click.option('--etas', multiple=True, default=[.05, .1, .2, 1, 2], type=float, help='List of values for (step size) parameter eta')
@@ -36,12 +34,15 @@ from src.generate_plots import generate_plots
 # policy gradient
 @click.option('--policy_gradient', is_flag=True, help='Flag for policy gradient method')
 @click.option('--nus', multiple=True, default=[.1, .2, 1, 2, 5], type=float, help='List of values for (policy gradient) parameter nu')
-def run_experiment(env_version, gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma, gammas, freg, regs, feta, etas, fn_sample, n_samples, seeds, max_iterations, n_jobs, policy_gradient, nus, unregularized_obj):
+# unregularized objective
+@click.option('--unregularized_obj', is_flag=True, help='Flag for evaluation on unregularized objective')
+# lagrangian
+@click.option('--lagrangian', is_flag=True, help='Flag for solving the lagrangian')
+def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma, gammas, freg, regs, num_followers, feta, etas, fn_sample, n_samples, seeds, max_iterations, n_jobs, policy_gradient, nus, unregularized_obj, lagrangian):
 
     print("Begin experiment\n")
 
     params = {}
-    params['env_version'] = env_version
     params['gradient'] = gradient
     params['sampling'] = sampling
     params['eps'] = eps
@@ -65,6 +66,12 @@ def run_experiment(env_version, gradient, sampling, eps, fbeta, betas, flamda, l
     params['nus'] = nus
     # unregularized objective
     params['unregularized_obj'] = unregularized_obj
+    # lagrangian
+    params['lagrangian'] = lagrangian
+
+    if lagrangian:
+        assert sampling, "Lagragian is solved for the finite sample case!"
+    assert (gradient or (sampling and not lagrangian)) + policy_gradient + unregularized_obj + lagrangian <=1, "Only use one solution concept is allowed (see README file)!"
 
     generate_data(params)
     generate_plots(params)

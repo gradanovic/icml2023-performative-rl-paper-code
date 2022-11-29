@@ -35,7 +35,6 @@ def generate_plots(params):
     n_samples = params['n_samples']
     # policy gradient
     policy_gradient = params['policy_gradient']
-    nus = params['nus']
     # unregularized objective
     unregularized_obj = params['unregularized_obj']
 

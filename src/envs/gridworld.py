@@ -7,11 +7,10 @@ import json
 from src.agents.gw_agent import Agent
 from src.policies.policies import *
 
-# TODO PAPER PERTR GRID WAS CREATED WITH SEED 100
 
-class GridworldV1():
+class Gridworld():
 
-    def __init__(self, beta, eps, gamma, sampling=False, n_sample=500, seed=1, max_sample_steps=100, num_pertrubed_grids = 50):
+    def __init__(self, beta, eps, gamma, sampling=False, n_sample=500, seed=1, max_sample_steps=100, num_followers = 5):
 
         # grid
         h = -0.5
@@ -52,13 +51,14 @@ class GridworldV1():
         self.action_space[1] = self.moves
         self.agents[1] = Agent(1, self.action_space[1])
         # agent 2 is the secondary agent (makes interventions based on one or more pertrubed grids) and it is considered as part of the environment
+        # followers are basically integrated in agent 2
         self.action_space[2] = self.interventions
         self.agents[2] = Agent(2, self.action_space[2])
-        # pertrub grids for agent 2 -- the pertrubed grids stay the same for all experiments
-        self.num_pertrubed_grids = num_pertrubed_grids
+        # pertrub grids for agent 2/followers -- the pertrubed grids stay the same for all experiments
+        self.num_followers = num_followers
         self.eps = eps
         self.pertrubed_grids = []
-        for pertrubation_seed in range(num_pertrubed_grids):
+        for pertrubation_seed in range(num_followers):
             pertrubation_rng  = np.random.default_rng(pertrubation_seed)
             self.pertrubed_grids.append(self.pertrub_grid(pertrubation_rng))
         # pertrubed grid that computational functions solve for
@@ -314,39 +314,22 @@ class GridworldV1():
         """
         """
         agent = self.agents[1]
-        fixed_agent = self.agents[2]
-        rho = self.rho
         n_sample = self.n_sample
-        rng = self.rng
 
         # total values
         T_tot = np.zeros(shape=(self.dim, len(agent.actions), self.dim), dtype='float64')
         R_tot = np.zeros(shape=(self.dim, len(agent.actions)), dtype='float64')
         # visitattion count
         V = np.zeros(shape=(self.dim, len(agent.actions)), dtype='int')
-        # begin sampling trajectories
+        # compute empirical values TODO make sure everything okay, e.g., correct num of samples
         for _ in range(n_sample):
-            n_steps = 0
-            # initial state
-            s = rng.choice(np.arange(self.dim), p=rho)
-            while not self.is_terminal(s) and n_steps < self.max_sample_steps:
-                # actions
-                actions = {}
-                actions[agent.id] = agent.take_action(s, rng)
-                actions[fixed_agent.id] = fixed_agent.take_action(s, rng)
-                a = actions[agent.id]
+            trajectory = self.sample_trajectory()
+            for s, a, s_pr, r in trajectory:
                 # update visitation count
                 V[s, a] += 1
-                # next state
-                s_pr = self.get_mnext_state(s, actions)
-                # rewards
-                r = self.get_mrewards(s, actions, s_pr)
                 # update total values
                 T_tot[s, a, s_pr] += 1
-                R_tot[s, a] += r[agent.id]
-                # prepare for next time-step
-                s = s_pr
-                n_steps += 1       
+                R_tot[s, a] += r    
 
         # approximated values
         T_hat = np.zeros(shape=(self.dim, len(agent.actions), self.dim), dtype='float64')
@@ -376,6 +359,7 @@ class GridworldV1():
 
     def _get_d(self, T, agent, tol=1e-5):
         """
+        Computes state-action occupancy measure relative to some agent and transitions probability T
         """
         gamma = self.gamma
         rho = self.rho
@@ -465,6 +449,37 @@ class GridworldV1():
         new_grid[-1, -1] = self.grid[-1, -1]
 
         return new_grid
+
+    def sample_trajectory(self):
+        """
+        """
+        agent = self.agents[1]
+        fixed_agent = self.agents[2]
+        rho = self.rho
+        rng = self.rng
+        
+        # trajectory quartets (state, action, next state, reward)
+        trajectory = []
+        n_steps = 0
+        # initial state
+        s = rng.choice(np.arange(self.dim), p=rho)
+        while not self.is_terminal(s) and n_steps < self.max_sample_steps:
+            # actions
+            actions = {}
+            actions[agent.id] = agent.take_action(s, rng)
+            actions[fixed_agent.id] = fixed_agent.take_action(s, rng)
+            a = actions[agent.id]
+            # next state
+            s_pr = self.get_mnext_state(s, actions)
+            # rewards
+            r = self.get_mrewards(s, actions, s_pr)
+            # update trajectory
+            trajectory.append((s, a, s_pr, r[agent.id]))
+            # prepare for next time-step
+            s = s_pr
+            n_steps += 1 
+
+        return trajectory
     
     def _get_policy_array(self, agent):
         """
