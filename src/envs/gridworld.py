@@ -10,7 +10,7 @@ from src.policies.policies import *
 
 class Gridworld():
 
-    def __init__(self, beta, eps, gamma, sampling=False, n_sample=500, seed=1, max_sample_steps=100, num_followers = 50): # TODO
+    def __init__(self, beta, eps, gamma, num_followers, sampling=False, n_sample=500, seed=1, max_sample_steps=100):
 
         # grid
         h = -0.5
@@ -321,7 +321,7 @@ class Gridworld():
         R_tot = np.zeros(shape=(self.dim, len(agent.actions)), dtype='float64')
         # visitattion count
         V = np.zeros(shape=(self.dim, len(agent.actions)), dtype='int')
-        # compute empirical values TODO make sure everything okay, e.g., correct num of samples
+        # compute empirical data
         for _ in range(n_sample):
             trajectory = self.sample_trajectory()
             for s, a, s_pr, r in trajectory:
