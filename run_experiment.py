@@ -38,7 +38,10 @@ from src.generate_plots import generate_plots
 @click.option('--unregularized_obj', is_flag=True, help='Flag for evaluation on unregularized objective')
 # lagrangian
 @click.option('--lagrangian', is_flag=True, help='Flag for solving the lagrangian')
-def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma, gammas, freg, regs, num_followers, feta, etas, fn_sample, n_samples, num_seeds, max_iterations, n_jobs, policy_gradient, nus, unregularized_obj, lagrangian):
+@click.option('--n', default=10, type=int, help='Number of rounds N')
+@click.option('--delta', default=.1, type=float, help='Lagrangian parameter delta')
+@click.option('--b', default=10, type=int, help='Lagrangian parameter B')
+def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma, gammas, freg, regs, num_followers, feta, etas, fn_sample, n_samples, num_seeds, max_iterations, n_jobs, policy_gradient, nus, unregularized_obj, lagrangian, n, delta, b):
 
     print("Begin experiment\n")
 
@@ -54,6 +57,7 @@ def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma
     params['gammas'] = gammas
     params['freg'] = freg
     params['regs'] = regs
+    params['num_followers'] = num_followers
     params['feta'] = feta
     params['etas'] = etas
     params['fn_sample'] = fn_sample
@@ -68,6 +72,9 @@ def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma
     params['unregularized_obj'] = unregularized_obj
     # lagrangian
     params['lagrangian'] = lagrangian
+    params['N'] = n
+    params['delta'] = delta
+    params['B'] = b
 
     if lagrangian:
         assert sampling, "Lagragian is solved for the finite sample case!"

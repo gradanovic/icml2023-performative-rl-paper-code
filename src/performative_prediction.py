@@ -7,7 +7,7 @@ from src.policies.policies import *
 
 class Performative_Prediction():
 
-    def __init__(self, env: Gridworld, max_iterations, lamda, reg, gradient, eta, sampling, n_sample, policy_gradient, nu, unregularized_obj, lagrangian):
+    def __init__(self, env: Gridworld, max_iterations, lamda, reg, gradient, eta, sampling, n_sample, policy_gradient, nu, unregularized_obj, lagrangian, N, delta, B):
         
         self.env = env
         self.max_iterations = max_iterations
@@ -21,13 +21,12 @@ class Performative_Prediction():
         self.nu = nu
         self.unregularized_obj = unregularized_obj
         self.lagrangian = lagrangian
-        # TODO parameter
         # number of rounds for lagrangian method
-        self.N = 10
+        self.N = N
         # parameter delta for lagrangian (beta in document)
-        self.delta = .1
+        self.delta = delta
         # parame B for lagrangian
-        self.B = 10
+        self.B = B
 
         self.reset()
 
@@ -258,7 +257,7 @@ class Performative_Prediction():
 
             # compute vector L
             L = []
-            for s in range(env.dim):
+            for s in env.state_ids:
                 l = rho[s]
                 if n==0:
                     L.append(l)
@@ -295,7 +294,7 @@ class Performative_Prediction():
             # optimization objective
             obj = 0
             for s, a, s_pr, r in data:
-                # comes from constraint TODO ask again
+                # comes from constraint
                 if d_hat[s, a] == 0:
                     continue
                 obj += d[s, a] * (r - h_t[s] + gamma * h_t[s_pr])/(d_hat[s, a] * m * (1 - gamma))
@@ -303,7 +302,7 @@ class Performative_Prediction():
 
             # constraints
             constraints = []
-            for s in range(env.dim): # TODO state_ids
+            for s in env.state_ids:
                 for a in agent.actions:
                     constraints.append(d[s, a] <= self.B * d_hat[s,a])
                     constraints.append(d[s, a] >= 0)

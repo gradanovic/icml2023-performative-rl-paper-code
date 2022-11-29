@@ -27,6 +27,7 @@ def generate_data(params):
     betas = params['betas']
     fgamma = params['fgamma']
     gammas = params['gammas']
+    num_followers = params['num_followers']
     # perormative prediction parameters
     max_iterations = params['max_iterations']
     flamda = params['flamda']
@@ -47,6 +48,10 @@ def generate_data(params):
     unregularized_obj = params['unregularized_obj']
     # lagrangian
     lagrangian = params['lagrangian']
+    N = params['N']
+    delta = params['delta']
+    B = params['B']
+
 
     # Prepare Experiment Configurations
     configs = []
@@ -98,7 +103,7 @@ def generate_data(params):
         # parallelize over configurations
         with tqdm_joblib(tqdm(desc="Executing Performative Prediction", total=len(configs))) as progress_bar:
             outputs = Parallel(n_jobs=min(n_jobs, len(configs)))(
-                delayed(execute_performative_prediction)(config, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian)
+                delayed(execute_performative_prediction)(config, eps, num_followers, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, N, delta, B)
                 for config in configs
             )
     else:
@@ -109,7 +114,7 @@ def generate_data(params):
             output = {k: v for k, v in config.items()}
             with tqdm_joblib(tqdm(desc=f"Executing Performative Prediction for n_sample={config['n_sample']}", total=len(seeds))) as progress_bar:
                 tmp_output = Parallel(n_jobs=min(n_jobs, len(seeds)))(
-                    delayed(execute_performative_prediction)(config, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, seed)
+                    delayed(execute_performative_prediction)(config, eps, num_followers, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, N, delta, B, seed)
                     for seed in seeds
                 )
             d_diffs = [tmp_output[seed]['d_diff'] for seed in seeds]
@@ -131,7 +136,7 @@ def generate_data(params):
 
     return
 
-def execute_performative_prediction(config, eps, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, seed=1):
+def execute_performative_prediction(config, eps, num_followers, max_iterations, gradient, sampling, policy_gradient, unregularized_obj, lagrangian, N, delta, B, seed=1):
     """
     """
     beta = config['beta']
@@ -146,8 +151,8 @@ def execute_performative_prediction(config, eps, max_iterations, gradient, sampl
     elif sampling: n_sample = config['n_sample'] // 2
     else: n_sample = None
 
-    env = Gridworld(beta, eps, gamma, sampling, n_sample, seed)
-    algorithm = Performative_Prediction(env, max_iterations, lamda, reg, gradient, eta, sampling, n_sample, policy_gradient, nu, unregularized_obj, lagrangian)
+    env = Gridworld(beta, eps, gamma, num_followers, sampling, n_sample, seed)
+    algorithm = Performative_Prediction(env, max_iterations, lamda, reg, gradient, eta, sampling, n_sample, policy_gradient, nu, unregularized_obj, lagrangian, N, delta, B)
 
     output = {k: v for k,v in config.items()}
     algorithm.execute()
