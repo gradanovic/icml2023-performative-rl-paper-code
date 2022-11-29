@@ -10,7 +10,7 @@ from src.policies.policies import *
 
 class Gridworld():
 
-    def __init__(self, beta, eps, gamma, sampling=False, n_sample=500, seed=1, max_sample_steps=100, num_followers = 5):
+    def __init__(self, beta, eps, gamma, sampling=False, n_sample=500, seed=1, max_sample_steps=100, num_followers = 50): # TODO
 
         # grid
         h = -0.5

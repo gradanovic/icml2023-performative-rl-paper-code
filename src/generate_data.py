@@ -74,7 +74,7 @@ def generate_data(params):
                 configs.append({'beta': fbeta, 'lamda': flamda, 'gamma': fgamma, 'reg': freg, 'eta': eta, 'n_sample': fn_sample})
             else:
                 configs.append({'beta': fbeta, 'lamda': flamda, 'gamma': fgamma, 'reg': freg, 'eta': eta})
-    if sampling and not lagrangian:
+    if sampling:
         # iterate n_samples
         for n_sample in n_samples:
             if gradient:
@@ -89,10 +89,6 @@ def generate_data(params):
         # iterate lamdas
         for lamda in lamdas:
             configs.append({'beta': fbeta, 'lamda': lamda, 'gamma': fgamma, 'reg': freg})
-    if lagrangian:
-        for n_sample in n_samples:
-            # num of samples is split
-           configs.append({'beta': fbeta, 'lamda': flamda, 'gamma': fgamma, 'reg': freg, 'n_sample': n_sample//2})
 
     # remove duplicates
     configs = [dict(tup) for tup in set(tuple(d.items()) for d in configs)]
@@ -107,7 +103,7 @@ def generate_data(params):
             )
     else:
         outputs = []
-        # parallelize over seeds TODO for lagrangian
+        # parallelize over seeds
         configs = sorted(configs, key=lambda d: d['n_sample']) 
         for config in configs:
             output = {k: v for k, v in config.items()}
@@ -146,7 +142,8 @@ def execute_performative_prediction(config, eps, max_iterations, gradient, sampl
     else: eta = None
     if policy_gradient: nu = config['nu']
     else: nu = None
-    if sampling: n_sample = config['n_sample']
+    if sampling and not lagrangian: n_sample = config['n_sample']
+    elif sampling: n_sample = config['n_sample'] // 2
     else: n_sample = None
 
     env = Gridworld(beta, eps, gamma, sampling, n_sample, seed)

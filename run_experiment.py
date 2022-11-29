@@ -26,7 +26,7 @@ from src.generate_plots import generate_plots
 # sampling
 @click.option('--fn_sample', default=200, type=int, help='Fixed value for number of samples')
 @click.option('--n_samples', multiple=True, default=[20, 50, 100, 200, 500, 1000], type=int, help='List of values for number of samples')
-@click.option('--seeds', multiple=True, default=list(range(20)), type=int, help='List of experiment seeds')
+@click.option('--num_seeds', default=20, type=int, help='Number of experiment seeds')
 # iterations
 @click.option('--max_iterations', default=1000, type=int, help='Number of Iterations')
 # n_jobs
@@ -38,7 +38,7 @@ from src.generate_plots import generate_plots
 @click.option('--unregularized_obj', is_flag=True, help='Flag for evaluation on unregularized objective')
 # lagrangian
 @click.option('--lagrangian', is_flag=True, help='Flag for solving the lagrangian')
-def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma, gammas, freg, regs, num_followers, feta, etas, fn_sample, n_samples, seeds, max_iterations, n_jobs, policy_gradient, nus, unregularized_obj, lagrangian):
+def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma, gammas, freg, regs, num_followers, feta, etas, fn_sample, n_samples, num_seeds, max_iterations, n_jobs, policy_gradient, nus, unregularized_obj, lagrangian):
 
     print("Begin experiment\n")
 
@@ -58,7 +58,7 @@ def run_experiment(gradient, sampling, eps, fbeta, betas, flamda, lamdas, fgamma
     params['etas'] = etas
     params['fn_sample'] = fn_sample
     params['n_samples'] = n_samples
-    params['seeds'] = seeds
+    params['seeds'] = list(range(num_seeds))
     params['max_iterations'] = max_iterations
     params['n_jobs'] = n_jobs
     # policy gradient

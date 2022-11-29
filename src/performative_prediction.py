@@ -24,8 +24,10 @@ class Performative_Prediction():
         # TODO parameter
         # number of rounds for lagrangian method
         self.N = 10
-        # parameter delta for lagrangian (beta in doccument)
+        # parameter delta for lagrangian (beta in document)
         self.delta = .1
+        # parame B for lagrangian
+        self.B = 10
 
         self.reset()
 
@@ -257,23 +259,18 @@ class Performative_Prediction():
             # compute vector L
             L = []
             for s in range(env.dim):
-                if env.is_terminal(s): # TODO think and ask
-                    L.append(0)
-                    continue
                 l = rho[s]
                 if n==0:
                     L.append(l)
                     continue
-                for s_i, a, s_pr, _  in data:
+                for s_i, a, s_pr, _ in data:
                     if s_i == s:
-                        for n_pr in range(n-1):
-                            l -= d_lst[n_pr][s, a]/(d_hat[s, a] * m * (1 - gamma))
+                        for n_pr in range(n):
+                            l -= d_lst[n_pr][s_i, a]/(d_hat[s_i, a] * m * (1 - gamma))
                     if s_pr == s:
-                        for n_pr in range(n-1):
-                            l += gamma * (d_lst[n_pr][s, a]/(d_hat[s, a] * m * (1 - gamma)))
+                        for n_pr in range(n):
+                            l += gamma * (d_lst[n_pr][s_i, a]/(d_hat[s_i, a] * m * (1 - gamma)))
                 L.append(l)
-            print(L)
-            print()
 
             # optimization objective
             objective = cp.Minimize(cp.sum(cp.multiply(L, h)) + self.delta * cp.power(cp.pnorm(h, 2), 2))
@@ -285,11 +282,10 @@ class Performative_Prediction():
 
             # solve problem
             problem = cp.Problem(objective, constraints)
-            problem.solve(solver=cp.SCS, eps=1e-5)
+            # problem.solve(solver=cp.SCS, eps=1e-5)
+            problem.solve(solver=cp.CVXOPT)
 
             h_t = h.value
-            print(h_t)
-            print()
 
             # d Player
 
@@ -298,30 +294,29 @@ class Performative_Prediction():
 
             # optimization objective
             obj = 0
-            for s_i, a, s_pr, r  in data:
+            for s, a, s_pr, r in data:
+                # comes from constraint TODO ask again
+                if d_hat[s, a] == 0:
+                    continue
                 obj += d[s, a] * (r - h_t[s] + gamma * h_t[s_pr])/(d_hat[s, a] * m * (1 - gamma))
-            objective = cp.Maximize(-self.lamda/2 * cp.power(cp.pnorm(d, 2), 2) + cp.sum(cp.multiply(h.value, rho)) + obj)
+            objective = cp.Maximize(-self.lamda/2 * cp.power(cp.pnorm(d, 2), 2) + obj)
 
             # constraints
             constraints = []
-            for s in range(env.dim):
-                if env.is_terminal(s): continue
-                constraints.append(cp.sum(d[s]) == rho[s] + gamma * cp.sum(cp.multiply(d, self.T[:,:,s])))
+            for s in range(env.dim): # TODO state_ids
+                for a in agent.actions:
+                    constraints.append(d[s, a] <= self.B * d_hat[s,a])
+                    constraints.append(d[s, a] >= 0)
 
             # solve problem
             problem = cp.Problem(objective, constraints)
-            problem.solve(solver=cp.SCS, eps=1e-5)
-
-            print(d.value)
-            print()
+            # problem.solve(solver=cp.SCS, eps=1e-5)
+            problem.solve(solver=cp.CVXOPT)
 
             d_lst.append(d.value)
 
         # compute average d
         d_avg = np.mean(d_lst, axis=0)
-
-        print(d_avg)
-        print()
         
         # store difference in state-action occupancy measure
         self.d_diff.append(np.linalg.norm(d_avg - self.d_last)/np.linalg.norm(self.d_last))
@@ -329,10 +324,5 @@ class Performative_Prediction():
 
         # update policy
         agent.policy = RandomizedD_Policy(agent.actions, d_avg)
-
-        # 
-        print(env._get_policy_array(agent))
-        print()
-        exit()
 
         return
