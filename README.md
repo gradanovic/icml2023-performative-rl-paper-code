@@ -9,6 +9,7 @@ copy
 itertools
 time
 cvxpy
+cvxopt
 click
 multiprocessing
 statistics
