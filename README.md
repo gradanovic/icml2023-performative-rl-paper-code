@@ -1,4 +1,4 @@
-Performative Reinforcement Learning
+# Performative Reinforcement Learning -- ICML'23
 
 ## Prerequisites:
 ```
