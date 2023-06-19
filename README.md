@@ -1,4 +1,16 @@
-# Performative Reinforcement Learning -- ICML'23
+# Performative Reinforcement Learning [ICML'23]
+
+This repository contains code for the paper [Performative Reinforcement Learning](https://arxiv.org/abs/2207.00046).
+
+### Overview
+
+The repository is structured as follows:
+- src/ : This folder contains all the source code files required for generating the experiments' data and figures.
+- data/ : This folder is where all the experiments' data will be generated.
+- figures/ : This folder is where all the experiments' figures will be generated.
+- limiting_envs/ : This folder is for storing visualizations of the environment
+
+Before running the scripts, please install the following prerequisites. 
 
 ## Prerequisites:
 ```
@@ -22,7 +34,7 @@ cmath
 ```
 
 ## Running the code
-To recreate results, you will need to run the following scripts:
+To recreate the results of our paper, you will need to run the following scripts. Each of these scripts implements one of the methods described in the paper.
 
 ### Repeated Policy Optimization (Fig. 2.a and 2.b)
 ```
@@ -62,3 +74,6 @@ After running the above scripts, new plots will be generated in the figures dire
 
 The following are not included in the paper:
 * For the experiment *repeated gradient ascent with finite samples* the corresponding suboptimality gap is also computed
+
+## Contact Details
+For any questions or comments, contact strianta@mpi-sws.org.
