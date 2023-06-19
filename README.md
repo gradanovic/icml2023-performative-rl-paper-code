@@ -6,9 +6,9 @@ This repository contains code for the paper [Performative Reinforcement Learning
 
 The repository is structured as follows:
 - ```src/``` : This folder contains all the source code files required for generating the experiments' data and figures.
-- ```data/``` : This folder is where all the experiments' data will be generated.
-- ```figures/``` : This folder is where all the experiments' figures will be generated.
-- ```limiting_envs/``` : This folder is for storing visualizations of the environment
+- ```data/``` : This folder is where all the data will be generated.
+- ```figures/``` : This folder is where all the figures will be generated.
+- ```limiting_envs/``` : This folder is for storing visualizations of the environment.
 
 Before running the scripts, please install the following prerequisites. 
 
